@@ -1,0 +1,25 @@
+{
+  "domain": "naim_streaming",
+  "name": "Naim Streaming",
+  "codeowners": [
+    "@piotr-dziubecki"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/zerostorypoints/naim-home-assistant",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/zerostorypoints/naim-home-assistant/issues",
+  "loggers": [
+    "custom_components.naim_streaming"
+  ],
+  "requirements": [],
+  "version": "0.1.0",
+  "zeroconf": [
+    {
+      "type": "_sues800device._tcp.local.",
+      "properties": {
+        "manufacturer": "naim*"
+      }
+    }
+  ]
+}

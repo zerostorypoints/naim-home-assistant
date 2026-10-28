@@ -1,0 +1,29 @@
+name: Bug report
+description: Something does not work with your Naim streamer
+labels: [bug]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Model and firmware
+      description: Firmware is shown on the device page in Home Assistant.
+      placeholder: Uniti Star, 3.13.0.5828
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics and debug log
+      description: Device page → Download diagnostics. Attach the file or paste the relevant part.
