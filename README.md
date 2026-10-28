@@ -268,4 +268,4 @@ Not affiliated with or endorsed by Naim Audio Ltd. Naim is a trademark of its ow
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[MIT](LICENSE)
