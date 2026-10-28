@@ -81,6 +81,9 @@
       },
       "bitrate": {
         "name": "Bitrate"
+      },
+      "streaming_service": {
+        "name": "Streaming service"
       }
     }
   },
@@ -92,7 +95,7 @@
       "message": "The streamer is in standby. Turn it on first."
     },
     "unknown_source": {
-      "message": "This streamer has no input called {source}."
+      "message": "This streamer has no input or radio favourite called {source}."
     },
     "command_failed": {
       "message": "The streamer rejected the command: {error}"

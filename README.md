@@ -22,11 +22,13 @@ mute, input, playback, now playing and the stream format. No cloud and no accoun
 - **Power on and network standby** from Home Assistant, automations and voice assistants.
 - **Volume, mute and input**, with the input names you gave them in the Naim app (Analogue 1,
   Digital 1 to 5, CD, Internet Radio, Bluetooth, Spotify and the others your model has).
+- **Radio favourites.** Stations you add to Favourites in the Naim app appear in the input list
+  after the inputs. Selecting one starts it, so an automation can play a station.
 - **Playback**: play, pause, stop, next, previous, offered while the streamer allows them (it
   says so for each track), with title, artist, album, cover art, input, track length and
   position.
 - **Stream format sensors**: audio quality (Hi-Res, CD quality, Lossless, Lossy, DSD), codec,
-  sample rate, bit depth, bitrate.
+  sample rate, bit depth, bitrate, streaming service.
 - **Clear off state.** Network standby and "not responding" both show the streamer as off. A
   Network sensor tells them apart, and the entities stay usable after a restart even if the
   streamer is switched off at the mains.
@@ -99,12 +101,13 @@ For a streamer named `Uniti Star`:
 
 | Entity | What it does |
 |---|---|
-| `media_player.uniti_star` | Power, volume, mute, input (source), playback, now playing |
+| `media_player.uniti_star` | Power, volume, mute, input (source) and radio favourites, playback, now playing |
 | `sensor.uniti_star_audio_quality` | `Hi-Res`, `CD quality`, `Lossless`, `Lossy`, `DSD` while a stream plays |
 | `sensor.uniti_star_codec` | As reported by the stream, e.g. `FLAC` |
 | `sensor.uniti_star_sample_rate` | kHz, inputs included |
 | `sensor.uniti_star_bit_depth` | bit, inputs included |
 | `sensor.uniti_star_bitrate` | kbit/s |
+| `sensor.uniti_star_streaming_service` | The network source playing, e.g. `Qobuz`, `Spotify`, `Internet Radio`; empty on a physical input |
 | `binary_sensor.uniti_star_network` | On while the streamer answers on the network, standby included |
 
 ### Off, standby and not responding
@@ -125,8 +128,18 @@ Bluetooth, Spotify, CD. TIDAL, Qobuz, AirPlay and Chromecast start from their ow
 are not in the list, but the media player shows them as the current input while they play.
 Inputs disabled in the Naim app are left out; names given there are used.
 
-Audio quality has a value only for a stream that reports its codec (Spotify and Qobuz do, as FLAC).
-On a physical input the streamer reports the sample rate and bit depth it receives, but not what
+### Radio favourites
+
+Add stations to your radio Favourites in the Naim app. Home Assistant reads the list while the
+streamer is on, at power on and every five minutes, and lists the stations after the inputs. Selecting a station plays it; the streamer switches to Internet
+Radio by itself and the station sounds about four seconds later. While a favourite plays, the
+media player shows it as the current input. An input with the same name as a station takes
+precedence. A station offers stop only: the streamer allows no pause or skip on a live stream.
+
+### Stream format
+
+Audio quality has a value only for a stream that reports its codec: Spotify and Qobuz report
+FLAC, radio stations AAC or MP3 (Lossy). On a physical input the streamer reports the sample rate and bit depth it receives, but not what
 the source behind it plays, so the quality stays empty.
 
 ## Options
@@ -147,6 +160,32 @@ Dashboard card:
 ```yaml
 type: media-control
 entity: media_player.uniti_star
+```
+
+Morning radio (the station must be in the streamer's radio favourites):
+
+```yaml
+automation:
+  - alias: Naim morning radio
+    triggers:
+      - trigger: time
+        at: "07:00:00"
+    actions:
+      - action: media_player.turn_on
+        target:
+          entity_id: media_player.uniti_star
+      - wait_template: "{{ not is_state('media_player.uniti_star', 'off') }}"
+        timeout: "00:00:30"
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.uniti_star
+        data:
+          volume_level: 0.25
+      - action: media_player.select_source
+        target:
+          entity_id: media_player.uniti_star
+        data:
+          source: Radio Paradise - Main Mix
 ```
 
 Turntable in the evening:
@@ -234,8 +273,8 @@ trust.
 ## How it works
 
 The integration uses the same local API as the Naim app, on port 15081: `/power`,
-`/levels/room`, `/nowplaying` and `/inputs` to read and command, and `/notify`, a stream of
-server-sent events, for changes. A full refresh runs every 30 seconds as a safety net. The
+`/levels/room`, `/nowplaying`, `/inputs` and `/inputs/radio/favourites` to read and command,
+and `/notify`, a stream of server-sent events, for changes. A full refresh runs every 30 seconds as a safety net. The
 streamer's id comes from its StreamUnlimited streaming board on port 80
 (`systemmanager:systemMember`), the same id it announces over mDNS.
 

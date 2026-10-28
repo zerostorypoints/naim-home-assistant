@@ -30,9 +30,9 @@ DEVICE = NaimDeviceInfo(
 INPUTS = [
     NaimInput(ussi="inputs/ana1", name="Turntable", selectable=True),
     NaimInput(ussi="inputs/dig1", name="Digital 1", selectable=True),
-    NaimInput(ussi="inputs/radio", name="Internet Radio", selectable=True),
-    NaimInput(ussi="inputs/spotify", name="Spotify", selectable=True),
-    NaimInput(ussi="inputs/tidal", name="TIDAL", selectable=False),
+    NaimInput(ussi="inputs/radio", name="Internet Radio", selectable=True, streaming=True),
+    NaimInput(ussi="inputs/spotify", name="Spotify", selectable=True, streaming=True),
+    NaimInput(ussi="inputs/tidal", name="TIDAL", selectable=False, streaming=True),
     NaimInput(ussi="inputs/cd", name="CD Player", selectable=True),
 ]
 
@@ -60,6 +60,9 @@ NOW_PLAYING_SPOTIFY: dict[str, Any] = {
     "restrictSkipPrev": "0",
     "restrictStop": "0",
 }
+
+# Radio favourites as the client gives them: {station name: ussi}.
+FAVORITES = {"Station One": "inputs/radio/c3RhdGlvbjE", "Station Two": "inputs/radio/c3RhdGlvbjI"}
 
 POSITION_AT = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
 
@@ -110,4 +113,5 @@ def client() -> Generator[AsyncMock]:
         mock.get_inputs.return_value = INPUTS
         mock.get_state.return_value = playing_state()
         mock.get_now_playing.return_value = copy.deepcopy(NOW_PLAYING_SPOTIFY)
+        mock.get_radio_favorites.return_value = {}
         yield mock

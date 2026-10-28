@@ -1,8 +1,9 @@
-"""Media player entity: power, volume, mute, input and playback."""
+"""Media player entity: power, volume, mute, input, radio favourites and playback."""
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+import contextlib
 
 from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
@@ -96,11 +97,15 @@ class NaimMediaPlayer(NaimEntity, MediaPlayerEntity):
             return
 
         inputs = self.coordinator.inputs
-        self._attr_source_list = [
-            i.name for i in inputs if i.selectable and i.ussi not in self._hidden_sources
-        ] or None
+        names = [i.name for i in inputs if i.selectable and i.ussi not in self._hidden_sources]
+        # Radio favourites follow the inputs; an input of the same name wins.
+        stations = [name for name in self.coordinator.radio_favorites if name not in names]
+        self._attr_source_list = names + stations or None
         current = next((i for i in inputs if i.ussi == state.source), None)
-        self._attr_source = current.name if current else None
+        playing_favorite = (
+            state.station if state.station in self.coordinator.radio_favorites else None
+        )
+        self._attr_source = playing_favorite or (current.name if current else None)
         self._attr_volume_level = state.volume / 100 if state.volume is not None else None
         self._attr_is_volume_muted = state.muted
 
@@ -196,13 +201,23 @@ class NaimMediaPlayer(NaimEntity, MediaPlayerEntity):
 
     async def async_select_source(self, source: str) -> None:
         ussi = next((i.ussi for i in self.coordinator.inputs if source in (i.name, i.ussi)), None)
-        if ussi is None:
+        if ussi is not None:
+            await self._call(lambda: self.coordinator.client.select_input(ussi))
+            return
+        station = self.coordinator.radio_favorites.get(source)
+        if station is None and self.coordinator.data and self.coordinator.data.is_on:
+            # A station added in the Naim app since the last read, or a list not read yet
+            # right after power on.
+            with contextlib.suppress(NaimError):
+                await self.coordinator.async_read_favorites(force=True)
+            station = self.coordinator.radio_favorites.get(source)
+        if station is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="unknown_source",
                 translation_placeholders={"source": source},
             )
-        await self._call(lambda: self.coordinator.client.select_input(ussi))
+        await self._call(lambda: self.coordinator.client.play_radio(station))
 
     async def async_media_play(self) -> None:
         await self._call(lambda: self.coordinator.client.control("play"))

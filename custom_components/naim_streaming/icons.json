@@ -22,6 +22,9 @@
       },
       "bitrate": {
         "default": "mdi:speedometer"
+      },
+      "streaming_service": {
+        "default": "mdi:cast-audio"
       }
     },
     "binary_sensor": {

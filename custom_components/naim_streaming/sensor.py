@@ -1,4 +1,4 @@
-"""Stream format sensors: quality, codec, sample rate, bit depth, bitrate."""
+"""Stream format sensors: quality, codec, sample rate, bit depth, bitrate, service."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from homeassistant.const import UnitOfDataRate, UnitOfFrequency
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import ACTIVE_TRANSPORTS, NaimState, as_int
+from .api import ACTIVE_TRANSPORTS, NaimInput, NaimState, as_int
 from .coordinator import NaimConfigEntry
 from .entity import NaimEntity
 
@@ -66,17 +66,27 @@ def quality(state: NaimState) -> str | None:
     bits = _number(state, "bitDepth")
     if "dsd" in name:
         return "dsd"
+    # A lossy stream's depth is the decoder's output (AAC radio reports 32 bit): not Hi-Res.
+    if not any(c in name for c in LOSSLESS_CODECS):
+        return "lossy"
     if bits > 16 or rate > 48000:
         return "hi_res"
-    lossless = any(c in name for c in LOSSLESS_CODECS)
-    if lossless and bits == 16 and rate in (44100, 48000):
+    if bits == 16 and rate in (44100, 48000):
         return "cd"
-    return "lossless" if lossless else "lossy"
+    return "lossless"
+
+
+def streaming_service(state: NaimState, inputs: list[NaimInput]) -> str | None:
+    """The network source playing (Spotify, Qobuz, Internet Radio, ...), by its input's name."""
+    if not _active(state):
+        return None
+    current = next((i for i in inputs if i.ussi == state.source), None)
+    return current.name if current and current.streaming else None
 
 
 @dataclass(frozen=True, kw_only=True)
 class NaimSensorDescription(SensorEntityDescription):
-    value_fn: Callable[[NaimState], Any]
+    value_fn: Callable[[NaimState, list[NaimInput]], Any]
 
 
 SENSORS: tuple[NaimSensorDescription, ...] = (
@@ -85,9 +95,11 @@ SENSORS: tuple[NaimSensorDescription, ...] = (
         translation_key="audio_quality",
         device_class=SensorDeviceClass.ENUM,
         options=QUALITY_OPTIONS,
-        value_fn=quality,
+        value_fn=lambda state, _: quality(state),
     ),
-    NaimSensorDescription(key="codec", translation_key="codec", value_fn=codec),
+    NaimSensorDescription(
+        key="codec", translation_key="codec", value_fn=lambda state, _: codec(state)
+    ),
     NaimSensorDescription(
         key="sample_rate",
         translation_key="sample_rate",
@@ -95,14 +107,14 @@ SENSORS: tuple[NaimSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.KILOHERTZ,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
-        value_fn=sample_rate,
+        value_fn=lambda state, _: sample_rate(state),
     ),
     NaimSensorDescription(
         key="bit_depth",
         translation_key="bit_depth",
         native_unit_of_measurement="bit",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=bit_depth,
+        value_fn=lambda state, _: bit_depth(state),
     ),
     NaimSensorDescription(
         key="bitrate",
@@ -111,7 +123,12 @@ SENSORS: tuple[NaimSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfDataRate.KILOBITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
-        value_fn=bitrate,
+        value_fn=lambda state, _: bitrate(state),
+    ),
+    NaimSensorDescription(
+        key="streaming_service",
+        translation_key="streaming_service",
+        value_fn=streaming_service,
     ),
 )
 
@@ -135,4 +152,4 @@ class NaimSensor(NaimEntity, SensorEntity):
     def native_value(self) -> Any:
         if self.coordinator.data is None:
             return None
-        return self.entity_description.value_fn(self.coordinator.data)
+        return self.entity_description.value_fn(self.coordinator.data, self.coordinator.inputs)

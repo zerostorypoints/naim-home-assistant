@@ -15,6 +15,8 @@ not document it. Read on a Uniti Star, firmware 3.13:
     GET  /inputs                      {"children": [{"ussi": "inputs/ana1", "name", "alias",
                                       "disabled", "selectable", ...}]}
     GET  /<ussi>?cmd=select           switch to an input
+    GET  /inputs/radio/favourites     the stations added to Favourites in the Naim app
+    GET  /<station ussi>?cmd=play     play one; the streamer switches to Internet Radio itself
     GET  /notify                      Server-Sent Events: each change as
                                       {"ussi": "levels/room", "parameters": {"volume": "43"}}
 
@@ -53,6 +55,18 @@ TRANSPORT_PLAYING = 2
 TRANSPORT_PAUSED = 3
 TRANSPORT_BUFFERING = 8
 ACTIVE_TRANSPORTS = (TRANSPORT_PLAYING, TRANSPORT_PAUSED, TRANSPORT_BUFFERING)
+
+RADIO_INPUT = "inputs/radio"
+RADIO_FAVORITES = "inputs/radio/favourites"
+RADIO_STATION_CLASS = "object.stream.radio"
+# The sockets on the back; every other input is a network source.
+PHYSICAL_INPUT_CLASSES = (
+    "object.input.analogue",
+    "object.input.digital",
+    "object.input.hdmi",
+    "object.input.cd",
+    "object.input.usb",
+)
 
 # {"id": "np800-<uuid>", "host": "Uniti-Star-123456.local.", "name": <the name in the Naim app>}.
 # The id is also the uuid the streamer announces over mDNS.
@@ -98,6 +112,9 @@ class NaimInput:
     ussi: str
     name: str
     selectable: bool = True
+    # A streaming service or other network source (Spotify, Qobuz, Internet Radio, AirPlay, ...),
+    # not a socket on the back.
+    streaming: bool = False
 
 
 @dataclass(slots=True)
@@ -120,6 +137,11 @@ class NaimState:
     def source(self) -> str | None:
         """The ussi of the current input, e.g. inputs/spotify."""
         return self.playing.get("source") or None
+
+    @property
+    def station(self) -> str | None:
+        """The radio station playing, by the name the favourites list gives it."""
+        return (self.playing.get("station") or None) if self.source == RADIO_INPUT else None
 
     @property
     def transport(self) -> int | None:
@@ -263,9 +285,27 @@ class NaimClient:
                 continue
             name = (child.get("alias") or "").strip() or child.get("name") or ussi
             inputs.append(
-                NaimInput(ussi=ussi, name=name, selectable=as_flag(child.get("selectable", True)))
+                NaimInput(
+                    ussi=ussi,
+                    name=name,
+                    selectable=as_flag(child.get("selectable", True)),
+                    streaming=child.get("class") not in PHYSICAL_INPUT_CLASSES,
+                )
             )
         return inputs
+
+    async def get_radio_favorites(self) -> dict[str, str]:
+        """Radio favourites as {station name: ussi}, in the streamer's order."""
+        data = await self._get_dict(RADIO_FAVORITES)
+        return {
+            child["name"]: child["ussi"]
+            for child in data.get("children") or []
+            if child.get("class") == RADIO_STATION_CLASS and child.get("name") and child.get("ussi")
+        }
+
+    async def play_radio(self, ussi: str) -> None:
+        """Play a favourite station, from any input or from stop (about 4 s until it sounds)."""
+        await self.get(ussi, cmd="play")
 
     async def get_state(self) -> NaimState:
         """Read the full state. Raises NaimConnectionError when the streamer does not answer."""

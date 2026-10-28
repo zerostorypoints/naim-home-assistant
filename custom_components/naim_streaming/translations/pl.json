@@ -81,6 +81,9 @@
       },
       "bitrate": {
         "name": "Przepływność"
+      },
+      "streaming_service": {
+        "name": "Serwis streamingowy"
       }
     }
   },
@@ -92,7 +95,7 @@
       "message": "Streamer jest w trybie czuwania. Najpierw go włącz."
     },
     "unknown_source": {
-      "message": "Ten streamer nie ma wejścia {source}."
+      "message": "Ten streamer nie ma wejścia ani ulubionej stacji radiowej {source}."
     },
     "command_failed": {
       "message": "Streamer odrzucił polecenie: {error}"
