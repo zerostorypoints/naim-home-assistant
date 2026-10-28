@@ -1,0 +1,36 @@
+{
+  "entity": {
+    "sensor": {
+      "audio_quality": {
+        "default": "mdi:quality-high",
+        "state": {
+          "hi_res": "mdi:high-definition",
+          "cd": "mdi:disc",
+          "lossless": "mdi:quality-high",
+          "lossy": "mdi:quality-low",
+          "dsd": "mdi:waveform"
+        }
+      },
+      "codec": {
+        "default": "mdi:file-music"
+      },
+      "sample_rate": {
+        "default": "mdi:sine-wave"
+      },
+      "bit_depth": {
+        "default": "mdi:stairs"
+      },
+      "bitrate": {
+        "default": "mdi:speedometer"
+      }
+    },
+    "binary_sensor": {
+      "network": {
+        "default": "mdi:lan-disconnect",
+        "state": {
+          "on": "mdi:lan-connect"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Naim streamer",
+        "description": "Enter the IP address or host name of your Naim streamer (Uniti, Mu-so 2nd generation, NDX 2 or another model set up with the Naim app). It must be on the same network as Home Assistant.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url}).",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "For example 192.168.1.50. Reserve the address in your router so it does not change."
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Naim streamer found",
+        "description": "Add {name} ({model}) at {host}?\n\nTip: reserve {host} for the streamer in your router (a DHCP reservation or static lease). If the address changes, Home Assistant finds the streamer again, but only while it is on the network.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+      },
+      "reconfigure": {
+        "title": "Change the streamer address",
+        "data": {
+          "host": "Host"
+        },
+        "description": "Enter the new address of the streamer.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+      }
+    },
+    "error": {
+      "cannot_connect": "The streamer did not answer. Check the address and that it is powered at the mains (network standby is fine).",
+      "not_naim": "A device answered, but it does not look like a Naim streamer.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This streamer is already set up.",
+      "cannot_connect": "The streamer did not answer.",
+      "not_naim": "The discovered device is not a Naim streamer.",
+      "reconfigure_successful": "The address was updated.",
+      "wrong_device": "A different streamer answers at this address."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Naim options",
+        "data": {
+          "max_volume": "Maximum volume",
+          "hidden_sources": "Hidden inputs"
+        },
+        "data_description": {
+          "max_volume": "Home Assistant never sets the volume above this, so a slipped slider cannot drive the system to full power. The Naim's own remote and app are not limited.",
+          "hidden_sources": "Left out of the input list. Rename inputs, or disable them altogether, in the Naim app."
+        },
+        "description": "Brought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "network": {
+        "name": "Network"
+      }
+    },
+    "sensor": {
+      "audio_quality": {
+        "name": "Audio quality",
+        "state": {
+          "hi_res": "Hi-Res",
+          "cd": "CD quality",
+          "lossless": "Lossless",
+          "lossy": "Lossy",
+          "dsd": "DSD"
+        }
+      },
+      "codec": {
+        "name": "Codec"
+      },
+      "sample_rate": {
+        "name": "Sample rate"
+      },
+      "bit_depth": {
+        "name": "Bit depth"
+      },
+      "bitrate": {
+        "name": "Bitrate"
+      }
+    }
+  },
+  "exceptions": {
+    "not_responding": {
+      "message": "The streamer at {host} is not responding. It is switched off at the mains or disconnected; turn it on at the streamer."
+    },
+    "turned_off": {
+      "message": "The streamer is in standby. Turn it on first."
+    },
+    "unknown_source": {
+      "message": "This streamer has no input called {source}."
+    },
+    "command_failed": {
+      "message": "The streamer rejected the command: {error}"
+    }
+  },
+  "issues": {
+    "address_changed": {
+      "title": "{name} has a new IP address",
+      "description": "The streamer moved from {old_host} to {new_host}. Home Assistant has switched to the new address.\n\nTo stop this from happening, reserve {new_host} for the streamer in your router (a DHCP reservation or static lease). Then ignore or dismiss this message."
+    }
+  }
+}
