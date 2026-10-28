@@ -139,6 +139,7 @@ async def test_inputs(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) 
                 {
                     "name": "Analogue 1",
                     "ussi": "inputs/ana1",
+                    "class": "object.input.analogue",
                     "alias": "Turntable",
                     "disabled": "0",
                     "selectable": "1",
@@ -153,22 +154,71 @@ async def test_inputs(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) 
                 {
                     "name": "Digital 1",
                     "ussi": "inputs/dig1",
+                    "class": "object.input.digital",
                     "alias": "",
                     "disabled": "0",
                     "selectable": "1",
                 },
-                {"name": "Multi-room", "ussi": "inputs/multiroom", "selectable": "0"},
-                {"name": "TIDAL", "ussi": "inputs/tidal", "disabled": "0", "selectable": "0"},
+                {
+                    "name": "Multi-room",
+                    "ussi": "inputs/multiroom",
+                    "class": "object.input.multiroom",
+                    "selectable": "0",
+                },
+                {
+                    "name": "TIDAL",
+                    "ussi": "inputs/tidal",
+                    "class": "object.input.tidal",
+                    "disabled": "0",
+                    "selectable": "0",
+                },
             ]
         },
     )
     inputs = await NaimClient("naim", async_get_clientsession(hass)).get_inputs()
     assert inputs == [
-        NaimInput("inputs/ana1", "Turntable", True),
-        NaimInput("inputs/dig1", "Digital 1", True),
-        NaimInput("inputs/multiroom", "Multi-room", False),
-        NaimInput("inputs/tidal", "TIDAL", False),
+        NaimInput("inputs/ana1", "Turntable", True, streaming=False),
+        NaimInput("inputs/dig1", "Digital 1", True, streaming=False),
+        NaimInput("inputs/multiroom", "Multi-room", False, streaming=True),
+        NaimInput("inputs/tidal", "TIDAL", False, streaming=True),
     ]
+
+
+async def test_radio_favorites(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    """The shape of a Uniti Star's favourites: stations, and anything else left out."""
+    aioclient_mock.get(
+        f"{BASE}/inputs/radio/favourites",
+        json={
+            "ussi": "inputs/radio/favourites",
+            "class": "object.presets.radio",
+            "children": [
+                {
+                    "name": "Station One",
+                    "ussi": "inputs/radio/c3RhdGlvbjE",
+                    "class": "object.stream.radio",
+                    "bitRate": "320000",
+                },
+                {"name": "A folder", "ussi": "inputs/radio/Zm9sZGVy", "class": "object.container"},
+                {
+                    "name": "Station Two",
+                    "ussi": "inputs/radio/c3RhdGlvbjI",
+                    "class": "object.stream.radio",
+                },
+            ],
+        },
+    )
+    favorites = await NaimClient("naim", async_get_clientsession(hass)).get_radio_favorites()
+    assert favorites == {
+        "Station One": "inputs/radio/c3RhdGlvbjE",
+        "Station Two": "inputs/radio/c3RhdGlvbjI",
+    }
+
+
+def test_station_only_on_the_radio_input() -> None:
+    radio = NaimState(playing={"source": "inputs/radio", "station": "Station One"})
+    assert radio.station == "Station One"
+    other = NaimState(playing={"source": "inputs/qobuz", "station": "Station One"})
+    assert other.station is None
 
 
 async def test_device_info(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
@@ -232,6 +282,11 @@ def test_model_from_host(host, serial, model) -> None:
         (lambda c: c.set_mute(False), "PUT", f"{BASE}/levels/room?mute=0"),
         (lambda c: c.control("prev"), "GET", f"{BASE}/nowplaying?cmd=prev"),
         (lambda c: c.select_input("inputs/ana1"), "GET", f"{BASE}/inputs/ana1?cmd=select"),
+        (
+            lambda c: c.play_radio("inputs/radio/c3RhdGlvbjE"),
+            "GET",
+            f"{BASE}/inputs/radio/c3RhdGlvbjE?cmd=play",
+        ),
     ],
 )
 async def test_commands(

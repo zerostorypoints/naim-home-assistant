@@ -25,6 +25,7 @@ from .api import (
 from .const import (
     CONF_SOURCES,
     DOMAIN,
+    FAVORITES_INTERVAL,
     INPUTS_INTERVAL,
     RECONNECT_INTERVAL,
     SCAN_INTERVAL,
@@ -69,6 +70,9 @@ class NaimCoordinator(DataUpdateCoordinator[NaimState]):
             for ussi, cached in entry.data.get(CONF_SOURCES, {}).items()
         ]
         self._inputs_read_at: float | None = None
+        # Radio favourites, {station name: ussi}, read while the streamer is on.
+        self.radio_favorites: dict[str, str] = {}
+        self._favorites_read_at: float | None = None
         self._was_reachable = True
 
     async def _async_update_data(self) -> NaimState:
@@ -76,6 +80,7 @@ class NaimCoordinator(DataUpdateCoordinator[NaimState]):
             state = await self.client.get_state()
             if state.is_on:
                 await self._async_read_inputs()
+                await self.async_read_favorites()
         except NaimConnectionError as err:
             if self._was_reachable:
                 _LOGGER.info("%s is not responding, reporting it as off: %s", self.device.name, err)
@@ -104,11 +109,34 @@ class NaimCoordinator(DataUpdateCoordinator[NaimState]):
     @callback
     def _async_set_inputs(self, inputs: list[NaimInput]) -> None:
         self.inputs = inputs
-        cached = {i.ussi: {"name": i.name, "selectable": i.selectable} for i in inputs}
+        cached = {
+            i.ussi: {"name": i.name, "selectable": i.selectable, "streaming": i.streaming}
+            for i in inputs
+        }
         if self.config_entry.data.get(CONF_SOURCES) != cached:
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data={**self.config_entry.data, CONF_SOURCES: cached}
             )
+
+    async def async_read_favorites(self, force: bool = False) -> None:
+        """Read the radio favourites, at most every FAVORITES_INTERVAL unless forced."""
+        now = time.monotonic()
+        if (
+            not force
+            and self._favorites_read_at is not None
+            and now - self._favorites_read_at < FAVORITES_INTERVAL.total_seconds()
+        ):
+            return
+        try:
+            self.radio_favorites = await self.client.get_radio_favorites()
+        except NaimConnectionError:
+            raise
+        except NaimError as err:
+            # The list comes from Naim's radio service through the streamer, which may not be
+            # ready right after power on. Keep the last list and try again with the next refresh.
+            _LOGGER.debug("Could not read the radio favourites of %s: %s", self.device.name, err)
+            return
+        self._favorites_read_at = now
 
     async def async_run_event_loop(self) -> None:
         """Follow the streamer's event stream for as long as the entry is loaded."""
@@ -128,6 +156,7 @@ class NaimCoordinator(DataUpdateCoordinator[NaimState]):
     async def _async_handle_event(self, ussi: str, parameters: dict) -> None:
         if ussi == "power":
             # Standby and power on change what there is to read: read it all.
+            self._favorites_read_at = None
             await self.async_refresh()
             return
         if ussi not in ("levels/room", "nowplaying") or self.data is None:

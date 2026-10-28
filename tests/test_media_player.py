@@ -47,7 +47,7 @@ from custom_components.naim_streaming.const import (
 from custom_components.naim_streaming.diagnostics import async_get_config_entry_diagnostics
 from custom_components.naim_streaming.sensor import quality
 
-from .conftest import DEVICE, HOST, NOW_PLAYING_SPOTIFY, UNIQUE_ID, playing_state
+from .conftest import DEVICE, FAVORITES, HOST, NOW_PLAYING_SPOTIFY, UNIQUE_ID, playing_state
 
 PLAYER = "media_player.uniti_star"
 
@@ -97,6 +97,7 @@ async def test_playing(hass: HomeAssistant, config_entry, client) -> None:
     assert hass.states.get("sensor.uniti_star_bitrate").state == "768"
     assert hass.states.get("sensor.uniti_star_sample_rate").state == "unknown"
     assert hass.states.get("binary_sensor.uniti_star_network").state == STATE_ON
+    assert hass.states.get("sensor.uniti_star_streaming_service").state == "Spotify"
 
 
 async def test_restrictions_set_the_features(hass: HomeAssistant, config_entry, client) -> None:
@@ -139,6 +140,7 @@ async def test_external_input(hass: HomeAssistant, config_entry, client) -> None
     assert state.attributes["source"] == "Turntable"
     assert "media_title" not in state.attributes
     assert "media_position" not in state.attributes
+    assert hass.states.get("sensor.uniti_star_streaming_service").state == "unknown"
     assert hass.states.get("sensor.uniti_star_sample_rate").state == "48.0"
     assert hass.states.get("sensor.uniti_star_audio_quality").state == "unknown"
 
@@ -219,8 +221,8 @@ async def test_starts_off_when_seen_before(hass: HomeAssistant, client) -> None:
 async def test_inputs_cached_in_the_entry(hass: HomeAssistant, config_entry, client) -> None:
     await setup(hass, config_entry)
     cached = config_entry.data[CONF_SOURCES]
-    assert cached["inputs/ana1"] == {"name": "Turntable", "selectable": True}
-    assert cached["inputs/tidal"] == {"name": "TIDAL", "selectable": False}
+    assert cached["inputs/ana1"] == {"name": "Turntable", "selectable": True, "streaming": False}
+    assert cached["inputs/tidal"] == {"name": "TIDAL", "selectable": False, "streaming": True}
     assert config_entry.data[CONF_DEVICE]["unique_id"] == DEVICE.unique_id
 
 
@@ -360,6 +362,8 @@ async def test_volume_limit_and_hidden_inputs(hass: HomeAssistant, client) -> No
         ("FLAC", 96000, 24, "hi_res"),
         ("MP3", 44100, 16, "lossy"),
         ("AAC", None, None, "lossy"),
+        # AAC radio reports the decoder's 32 bit.
+        ("AAC", 44100, 32, "lossy"),
         ("DSD64", 2822400, 1, "dsd"),
         (None, None, None, None),
     ],
@@ -369,12 +373,121 @@ def test_quality(codec, rate, bits, expected) -> None:
     assert quality(playing_state(playing=playing)) == expected
 
 
+# The shape of a Uniti Star's /nowplaying on a radio favourite.
+RADIO_PLAYING = {
+    "source": "inputs/radio",
+    "station": "Station Two",
+    "title": "A song",
+    "artistName": "Artist",
+    "codec": "AAC",
+    "bitRate": "317907",
+    "sampleRate": "44100",
+    "bitDepth": "32",
+    "transportState": "2",
+    "live": "1",
+    "duration": "0",
+    "restrictPause": "128",
+    "restrictSkipNext": "128",
+    "restrictSkipPrev": "128",
+    "restrictSeek": "128",
+    "restrictResume": "0",
+    "restrictStop": "0",
+}
+
+
+async def test_radio_favorites(hass: HomeAssistant, config_entry, client) -> None:
+    client.get_radio_favorites.return_value = FAVORITES
+    await setup(hass, config_entry)
+    state = hass.states.get(PLAYER)
+    assert state.attributes["source_list"][-2:] == ["Station One", "Station Two"]
+
+    await call(hass, SERVICE_SELECT_SOURCE, **{ATTR_INPUT_SOURCE: "Station One"})
+    client.play_radio.assert_awaited_once_with(FAVORITES["Station One"])
+    client.select_input.assert_not_called()
+
+
+async def test_radio_favorite_playing(hass: HomeAssistant, config_entry, client) -> None:
+    """The source is the station; a station gives only stop."""
+    client.get_radio_favorites.return_value = FAVORITES
+    client.get_state.return_value = playing_state(playing=dict(RADIO_PLAYING))
+    await setup(hass, config_entry)
+    state = hass.states.get(PLAYER)
+    assert state.attributes["source"] == "Station Two"
+    assert state.attributes["app_name"] == "Internet Radio"
+    features = MediaPlayerEntityFeature(state.attributes[ATTR_SUPPORTED_FEATURES])
+    assert features & MediaPlayerEntityFeature.STOP
+    assert not features & (MediaPlayerEntityFeature.PAUSE | MediaPlayerEntityFeature.NEXT_TRACK)
+    assert hass.states.get("sensor.uniti_star_audio_quality").state == "lossy"
+    assert hass.states.get("sensor.uniti_star_streaming_service").state == "Internet Radio"
+
+
+async def test_radio_outside_favorites_shows_the_input(
+    hass: HomeAssistant, config_entry, client
+) -> None:
+    client.get_radio_favorites.return_value = FAVORITES
+    client.get_state.return_value = playing_state(
+        playing={**RADIO_PLAYING, "station": "Not a favourite"}
+    )
+    await setup(hass, config_entry)
+    assert hass.states.get(PLAYER).attributes["source"] == "Internet Radio"
+
+
+async def test_input_wins_over_a_favorite_of_the_same_name(
+    hass: HomeAssistant, config_entry, client
+) -> None:
+    client.get_radio_favorites.return_value = {"Spotify": "inputs/radio/c3BvdGlmeQ"}
+    await setup(hass, config_entry)
+    assert hass.states.get(PLAYER).attributes["source_list"].count("Spotify") == 1
+    await call(hass, SERVICE_SELECT_SOURCE, **{ATTR_INPUT_SOURCE: "Spotify"})
+    client.select_input.assert_awaited_once_with("inputs/spotify")
+    client.play_radio.assert_not_called()
+
+
+async def test_favorites_read_sparingly(hass: HomeAssistant, config_entry, client) -> None:
+    await setup(hass, config_entry)
+    await refresh(hass, config_entry)
+    await refresh(hass, config_entry)
+    assert client.get_radio_favorites.await_count == 1
+    # Power on (or standby) reads them again.
+    await config_entry.runtime_data._async_handle_event("power", {"system": "on"})
+    await hass.async_block_till_done()
+    assert client.get_radio_favorites.await_count == 2
+
+
+async def test_new_favorite_is_read_on_select(hass: HomeAssistant, config_entry, client) -> None:
+    await setup(hass, config_entry)
+    client.get_radio_favorites.return_value = FAVORITES
+    await call(hass, SERVICE_SELECT_SOURCE, **{ATTR_INPUT_SOURCE: "Station Two"})
+    client.play_radio.assert_awaited_once_with(FAVORITES["Station Two"])
+
+
+async def test_favorites_not_read_in_standby(hass: HomeAssistant, config_entry, client) -> None:
+    client.get_state.return_value = NaimState(reachable=True, power="lona")
+    await setup(hass, config_entry)
+    client.get_radio_favorites.assert_not_called()
+
+
+async def test_favorites_read_failure_keeps_the_list(
+    hass: HomeAssistant, config_entry, client
+) -> None:
+    client.get_radio_favorites.return_value = FAVORITES
+    await setup(hass, config_entry)
+    client.get_radio_favorites.side_effect = NaimError("returned 500")
+    await config_entry.runtime_data.async_read_favorites(force=True)
+    assert config_entry.runtime_data.radio_favorites == FAVORITES
+
+
 async def test_diagnostics_and_unload(hass: HomeAssistant, config_entry, client) -> None:
     await setup(hass, config_entry)
     diag = await async_get_config_entry_diagnostics(hass, config_entry)
     assert diag["device"]["model"] == "Uniti Star"
     assert diag["state"]["power"] == "on"
-    assert {"ussi": "inputs/ana1", "name": "Turntable", "selectable": True} in diag["inputs"]
+    assert {
+        "ussi": "inputs/ana1",
+        "name": "Turntable",
+        "selectable": True,
+        "streaming": False,
+    } in diag["inputs"]
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.NOT_LOADED
 
