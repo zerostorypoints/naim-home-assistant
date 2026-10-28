@@ -19,6 +19,3 @@ RECONNECT_INTERVAL: Final = 10
 INPUTS_INTERVAL: Final = timedelta(minutes=10)
 # Radio favourites change only when someone edits them in the Naim app.
 FAVORITES_INTERVAL: Final = timedelta(minutes=5)
-
-ZSP_URL: Final = "https://zerostorypoints.com/?utm_source=home-assistant&utm_medium=integration&utm_campaign=naim_streaming"
-HIFISYNC_URL: Final = "https://hifisync.com/?utm_source=home-assistant&utm_medium=integration&utm_campaign=naim_streaming"

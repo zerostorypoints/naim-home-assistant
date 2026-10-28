@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Naim streamer",
-        "description": "Enter the IP address or host name of your Naim streamer (Uniti, Mu-so 2nd generation, NDX 2 or another model set up with the Naim app). It must be on the same network as Home Assistant.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url}).",
+        "description": "Enter the IP address or host name of your Naim streamer (Uniti, Mu-so 2nd generation, NDX 2 or another model set up with the Naim app). It must be on the same network as Home Assistant.",
         "data": {
           "host": "Host"
         },
@@ -14,14 +14,14 @@
       },
       "zeroconf_confirm": {
         "title": "Naim streamer found",
-        "description": "Add {name} ({model}) at {host}?\n\nTip: reserve {host} for the streamer in your router (a DHCP reservation or static lease). If the address changes, Home Assistant finds the streamer again, but only while it is on the network.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+        "description": "Add {name} ({model}) at {host}?\n\nTip: reserve {host} for the streamer in your router (a DHCP reservation or static lease). If the address changes, Home Assistant finds the streamer again, but only while it is on the network."
       },
       "reconfigure": {
         "title": "Change the streamer address",
         "data": {
           "host": "Host"
         },
-        "description": "Enter the new address of the streamer.\n\nBrought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+        "description": "Enter the new address of the streamer."
       }
     },
     "error": {
@@ -48,8 +48,7 @@
         "data_description": {
           "max_volume": "Home Assistant never sets the volume above this, so a slipped slider cannot drive the system to full power. The Naim's own remote and app are not limited.",
           "hidden_sources": "Left out of the input list. Rename inputs, or disable them altogether, in the Naim app."
-        },
-        "description": "Brought to you by [HiFiSync]({hifisync_url}): hi-fi system matching grounded in physics. Made by [Zero Story Points]({zsp_url})."
+        }
       }
     }
   },

@@ -56,6 +56,11 @@ If you own one of the untested models, please
 A quick check: if `http://<streamer-address>:15081/system` answers with a page of JSON that
 includes `"hardwareType"`, the streamer is on this platform.
 
+Another community integration, `naim_media_player`
+([jorourke/naim-atom-home-assistant](https://github.com/jorourke/naim-atom-home-assistant)), also
+controls these streamers through the same local API. The two use different domains and can be
+installed side by side; add a streamer to only one of them.
+
 Home Assistant may also create a Google Cast and a DLNA player for the same streamer. They see
 only their own sessions (a Cast session, a DLNA stream), not what plays from Spotify, Qobuz,
 TIDAL or an input, so their state goes stale. Use the player this integration creates.
