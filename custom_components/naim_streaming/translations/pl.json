@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Streamer Naim",
-        "description": "Podaj adres IP lub nazwę hosta streamera Naim (Uniti, Mu-so 2. generacji, NDX 2 lub inny model konfigurowany aplikacją Naim). Musi być w tej samej sieci co Home Assistant.\n\nPrzygotowane przez [HiFiSync]({hifisync_url}): dobór systemu hi-fi oparty na fizyce. Autor: [Zero Story Points]({zsp_url}).",
+        "description": "Podaj adres IP lub nazwę hosta streamera Naim (Uniti, Mu-so 2. generacji, NDX 2 lub inny model konfigurowany aplikacją Naim). Musi być w tej samej sieci co Home Assistant.",
         "data": {
           "host": "Host"
         },
@@ -14,14 +14,14 @@
       },
       "zeroconf_confirm": {
         "title": "Znaleziono streamer Naim",
-        "description": "Dodać {name} ({model}) pod adresem {host}?\n\nWskazówka: zarezerwuj adres {host} dla streamera w routerze (rezerwacja DHCP / stały adres). Gdy adres się zmieni, Home Assistant znajdzie streamer ponownie, ale tylko wtedy, gdy jest on w sieci.\n\nPrzygotowane przez [HiFiSync]({hifisync_url}): dobór systemu hi-fi oparty na fizyce. Autor: [Zero Story Points]({zsp_url})."
+        "description": "Dodać {name} ({model}) pod adresem {host}?\n\nWskazówka: zarezerwuj adres {host} dla streamera w routerze (rezerwacja DHCP / stały adres). Gdy adres się zmieni, Home Assistant znajdzie streamer ponownie, ale tylko wtedy, gdy jest on w sieci."
       },
       "reconfigure": {
         "title": "Zmień adres streamera",
         "data": {
           "host": "Host"
         },
-        "description": "Podaj nowy adres streamera.\n\nPrzygotowane przez [HiFiSync]({hifisync_url}): dobór systemu hi-fi oparty na fizyce. Autor: [Zero Story Points]({zsp_url})."
+        "description": "Podaj nowy adres streamera."
       }
     },
     "error": {
@@ -48,8 +48,7 @@
         "data_description": {
           "max_volume": "Home Assistant nigdy nie ustawi głośności powyżej tej wartości, więc przypadkowo przesunięty suwak nie podkręci systemu na pełną moc. Pilot i aplikacja Naim nie są ograniczone.",
           "hidden_sources": "Nie pojawiają się na liście wejść. Nazwy wejść zmienisz, a wejścia całkiem wyłączysz, w aplikacji Naim."
-        },
-        "description": "Przygotowane przez [HiFiSync]({hifisync_url}): dobór systemu hi-fi oparty na fizyce. Autor: [Zero Story Points]({zsp_url})."
+        }
       }
     }
   },
